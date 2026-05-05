@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Federal RFP Finder
 
-## Getting Started
+An intelligent discovery tool that matches federal contractor profiles against active government solicitations using Exa's neural search API and Claude-powered agentic workflows.
 
-First, run the development server:
+**Market:** Federal government contracting ($700B+/year). See [docs/MARKET_WRITEUP.md](docs/MARKET_WRITEUP.md) for the full market analysis and value proposition.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+**End user:** Capture managers and BD teams at mid-size federal contractors (50-2,000 employees) who spend 2-4 hours per opportunity on manual qualification research across disconnected government databases.
+
+**What it does:** Select a company profile, click one button, and get semantically matched RFPs from across federal procurement sources. Deep-dive any result to pull deadlines, budgets, incumbents, and related opportunities — all without leaving the app.
+
+## Demo flows
+
+**1. Find RFPs by profile** — Select a company profile from the sidebar, then click "Find RFPs for [Company]". The `/api/find-rfps` agent runs multiple Exa searches tailored to the profile's NAICS codes, certifications, and agency targets.
+
+**2. Deep research on an RFP** — Click "Research" on any result card. The `/api/research` agent calls Exa's answer endpoint to extract deadline, budget, set-aside, and NAICS details, then `findSimilar` to surface related opportunities, and synthesizes a fit assessment streamed into a slide-out drawer.
+
+Try both flows with different profiles — results differ meaningfully by profile.
+
+## Setup
+
+### 1. Environment variables
+
+Create `.env.local` in the project root:
+
+```
+ANTHROPIC_API_KEY=your_anthropic_key
+EXA_API_KEY=your_exa_key
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Install and run
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open [http://localhost:3000](http://localhost:3000).
 
-## Learn More
+### 3. (Optional) Regenerate company profiles
 
-To learn more about Next.js, take a look at the following resources:
+The repo ships with pre-generated profiles in `src/data/profiles.json`. To regenerate them using the Claude + Exa agent script:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run create-sim-profiles
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Architecture
 
-## Deploy on Vercel
+| File | Purpose |
+|------|---------|
+| `src/app/page.tsx` | Main UI — profile selector, results list, research drawer |
+| `src/data/profiles.json` | Pre-generated fictional company profiles |
+| `src/lib/profiles.ts` | Profile loader + `getProfileById` helper |
+| `src/lib/exa-tools.ts` | Shared Exa tools: `rfpWebSearch`, `findSimilar`, `researchOpportunity` |
+| `src/app/api/find-rfps/` | Agentic search — multi-step Exa searches driven by Claude |
+| `src/app/api/research/` | Streaming deep-research using Exa answer + findSimilar |
+| `scripts/create-sim-profiles.ts` | Offline agent script to generate realistic profile data |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Exa API usage
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The applet exercises three Exa primitives:
+
+- **`search`** — Profile-driven web search across federal procurement sources (SAM.gov, Grants.gov, agency sites)
+- **`findSimilar`** — Given an RFP URL, find related opportunities from the same agency or program
+- **`answer`** — Extract structured details (deadlines, budgets, incumbents) from opportunity pages
+
+## Process artifacts
+
+Design and planning docs are in `docs/` and `plans/` for anyone interested in the build process:
+
+- [docs/SCOPING.md](docs/SCOPING.md) — Initial scoping for a solicitation-input "opportunity brief" concept (earlier iteration, evolved into profile-driven search)
+- [docs/design-rfp-finder-v2.md](docs/design-rfp-finder-v2.md) — Design for the profile-driven architecture (current version)
+- [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) — Demo walkthrough script (written for the earlier brief concept)
+- [plans/rfp-finder-v2-implementation-plan.md](plans/rfp-finder-v2-implementation-plan.md) — Implementation plan for the current version
